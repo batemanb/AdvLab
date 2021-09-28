@@ -1,9 +1,9 @@
 %Analyse Data Taken from a Muon detector, each entry in data1 corresponds to 
 %the time between successive detections. The text file has 1.6 million entries, 
 %so only read it once per session.
-pkg load statistics;
+
 %Read data from a text file
-data1 = dlmread('09-14-21_Muon_Thresh0p010_DerThresh0p005.txt' ); %s
+%data1 = dlmread('09-14-21_Muon_Thresh0p010_DerThresh0p005.txt' ); %s
 ttl_signal = dlmread('F0000CH1.csv' , ',' , 0 , 3);
 
 % Here we're making length by 1 arrays of time and voltages from the ttl_signal
@@ -46,6 +46,8 @@ ln = plot(ttl_time,ttl_voltage);
 plot(rise_time, ttl_voltage(rise_index), 'or');
 plot(fall_time, ttl_voltage(fall_index), 'or');
 title('TTL Signal');
+xlabel('Time (s)');
+ylabel('Voltage (v)');
 ttl_width = fall_time-rise_time;
 
 %Muon Statistics
@@ -54,31 +56,30 @@ time = sum(data2); %s Total time
 count = rows(data2); % Number of events counted
 R = count/time; % 
 
-trange = linspace(0,time,10000);
-Poisson = exp(-R.*trange);
+nbin = 71;
+trange = logspace(-7,0,nbin);
+Poisson = R*exp(-R.*trange);
 
-%Take the log of the data.
-LogData = log10(data2); 
-%hist creates a histogram of a vector with nbins. I've specified to normalize the bars.
+%hist creates a histogram of a vector with nbins.
 %nbin is 10 by default, hist does not normalize by default
 nbin = 71;
-edges = linspace(-7,0,nbin);
-n = histc(LogData,edges);
-binwidths = 10.**edges;
+edges = logspace(-7,0,nbin);
+n = histc(data2,edges);
+n = n(1:end-1);
+bincenter = edges(1:end-1) +diff(edges)/2;
+binSize = diff(edges);
+Hist_Data = n' ./binSize ./count;
+unc = (log(e).*(Hist_Data).**(1/2))/count./binSize;
 
-noverwidths = n'./binwidths/count;
-CountError = (noverwidths.**(1/2))/
+%Plotting 
 figure(2); clf
-plot(edges, noverwidths, '.r', 'markersize', 15);
+hold on
+plot(trange,Poisson)
+plot(bincenter, Hist_Data, '.r', 'markersize', 20);
+errorbar(bincenter, Hist_Data, unc);
+set(gca,'xscale','log','yscale','log') %Change scales to logarithmic 
 title('Logarithmic Binning')
 xlabel('Log Scale');
+ylabel('Poisson Distribution (1/s)');
+legend('Poisson Distribution','Data')
 
-
-##
-##figure(3); clf
-##hist(data1, nbins=nbin, 1);
-##title('Normalized Binning of Muon Data')
-##
-##figure(4); clf
-##hist(LogData,nbins=nbin,1);
-##title('Log Binning (not accounting for bin width)')
